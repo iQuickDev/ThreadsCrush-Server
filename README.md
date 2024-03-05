@@ -1,3 +1,13 @@
+# Setup
+Create a `.env` file and place it in the root directory with the following contents
+
+```
+DATABASE_URL=postgresql://db.url.example:6969
+RECAPTCHA_SECRET=yourcaptchasecret
+```
+
+Run `cargo watch -x "loco start"` to start development
+
 # Welcome to Loco :train:
 
 Loco is a web and API framework running on Rust.
