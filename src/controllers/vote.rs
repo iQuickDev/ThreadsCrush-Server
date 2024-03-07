@@ -5,7 +5,7 @@ use axum::http::StatusCode;
 use axum_client_ip::SecureClientIp;
 use loco_rs::{controller::ErrorDetail, prelude::*};
 use serde::Deserialize;
-use tracing::error;
+use tracing::{error, debug};
 
 use crate::{
     app::REQWEST_CLIENT,
@@ -78,7 +78,12 @@ async fn vote(
 
     user::Model::add(&ctx.db, &params.username).await?;
 
-    voter::Model::add(&ctx.db, &secure_ip.0.to_canonical().to_string()).await.map_err(|err| {
+    // TODO: Error here
+    let voted_user_id = user::Model::get_id(&ctx.db, &params.username).await?;
+
+    debug!("Voted user id: {}", voted_user_id);
+
+    voter::Model::add(&ctx.db, &secure_ip.0.to_canonical().to_string(), voted_user_id).await.map_err(|err| {
         match err {
             VoterError::AlreadyVoted => {
                 Error::CustomError(
@@ -87,6 +92,8 @@ async fn vote(
                 )
             }
             _ => {
+                error!("Internal server error (Model): {}", err);
+
                 Error::CustomError(
                     StatusCode::INTERNAL_SERVER_ERROR,
                     ErrorDetail::new("INTERNAL_ERROR", "Internal server error"),

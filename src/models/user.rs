@@ -1,34 +1,29 @@
 use crate::views::leaderboard::Pagination;
 
 use super::_entities::user::{self, ActiveModel};
-use loco_rs::model::ModelResult;
+use super::_entities::voter;
+use loco_rs::prelude::*;
+use loco_rs::model::{ModelError, ModelResult};
 use sea_orm::{entity::prelude::*, ActiveValue, Order, QueryOrder, QuerySelect, TransactionTrait};
+use sea_orm::{FromQueryResult, JoinType};
+
 
 impl ActiveModelBehavior for ActiveModel {
     // extend activemodel below (keep comment for generators)
+}
+
+#[derive(FromQueryResult, Debug)]
+pub struct UserWithVotes {
+    pub votes: i64,
+    pub username: String,
 }
 
 impl super::_entities::user::Model {
     pub async fn add(db: &DatabaseConnection, username: &str) -> ModelResult<Self> {
         let txn = db.begin().await?;
 
-        let user_qry = user::Entity::find()
-            .filter(user::Column::Username.eq(username))
-            .one(&txn)
-            .await?;
-
-        if let Some(user) = user_qry {
-            let mut existing_user: user::ActiveModel = user.into();
-            existing_user.votes = ActiveValue::set(existing_user.votes.unwrap() + 1);
-            let existing_user: user::Model = existing_user.update(&txn).await?;
-            txn.commit().await?;
-            return Ok(existing_user);
-        }
-
-        // If the user doesn't exist, create a new user with 1 vote
         let new_user = user::ActiveModel {
             username: ActiveValue::set(username.to_string()),
-            votes: ActiveValue::set(1),
             ..Default::default()
         }
         .insert(&txn)
@@ -44,17 +39,24 @@ impl super::_entities::user::Model {
         username: Option<String>,
         page: u64,
         count: u64,
-    ) -> ModelResult<Vec<user::Model>> {
+    ) -> ModelResult<Vec<UserWithVotes>> {
         let mut users = user::Entity::find()
-            .order_by(user::Column::Votes, Order::Desc)
+            .select_only()
+            .column(user::Column::Username)
+            .column_as(voter::Column::Id.count(), "votes")
+            .join(JoinType::Join, user::Relation::Voter.def())
+            .group_by(user::Column::Id)
+            .order_by(voter::Column::VotedUserId.count(), Order::Desc)
             .limit(count)
             .offset((page - 1) * count);
 
         if let Some(username) = username {
-            users = users.filter(user::Column::Username.starts_with(username))
+            users = users.filter(user::Column::Username.contains(username))
         }
 
-        Ok(users.all(db).await?)
+        let users = users.into_model::<UserWithVotes>().all(db).await?;
+
+        Ok(users)
     }
 
     pub async fn get_leaderboard_pagination(
@@ -69,5 +71,17 @@ impl super::_entities::user::Model {
             last,
             ..Default::default()
         })
+    }
+
+    pub async fn get_id(db: &DatabaseConnection, username: &String) -> ModelResult<i32> {
+        let user = voter::Entity::find()
+            .filter(voter::Column::Address.eq(username))
+            .one(db)
+            .await?;
+        
+        match user {
+            Some(user) => Ok(user.id),
+            None => Err(ModelError::EntityNotFound),
+        }
     }
 }

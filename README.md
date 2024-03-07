@@ -10,6 +10,7 @@ Run `cargo watch -x "loco start"` to start development
 
 # Welcome to Loco :train:
 
+
 Loco is a web and API framework running on Rust.
 
 ## Quick Start

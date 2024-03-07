@@ -1,4 +1,4 @@
-use crate::models::_entities::user;
+use crate::models::user::UserWithVotes;
 use serde::Serialize;
 
 #[derive(Serialize, Default)]
@@ -27,19 +27,19 @@ impl Default for Pagination {
 #[derive(Serialize, Default)]
 pub struct User {
     username: String,
-    votes: i32,
+    votes: i64,
 }
 
 impl LeaderboardResponse {
-    pub fn new(users: Vec<user::Model>, pagination: Pagination) -> Self {
+    pub fn new(users: Vec<UserWithVotes>, pagination: Pagination) -> Self {
         let users = users.into_iter().map(|user| user.into()).collect();
 
         LeaderboardResponse { pagination, users }
     }
 }
 
-impl From<user::Model> for User {
-    fn from(user: user::Model) -> Self {
+impl From<UserWithVotes> for User {
+    fn from(user: UserWithVotes) -> Self {
         User {
             username: user.username,
             votes: user.votes,

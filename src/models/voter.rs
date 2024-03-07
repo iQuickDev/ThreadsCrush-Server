@@ -29,7 +29,7 @@ impl super::_entities::voter::Model {
         voter.ok_or_else(|| ModelError::EntityNotFound)
     }
 
-    pub async fn add(db: &DatabaseConnection, address: &str) -> Result<Self, VoterError> {
+    pub async fn add(db: &DatabaseConnection, address: &str, voted_user_id: i32) -> Result<Self, VoterError> {
         let txn = db.begin().await.map_err(ModelError::from)?;
 
         if voter::Entity::find()
@@ -44,6 +44,7 @@ impl super::_entities::voter::Model {
 
         let voter = voter::ActiveModel {
             address: ActiveValue::set(address.to_string()),
+            voted_user_id: ActiveValue::set(voted_user_id),
             ..Default::default()
         }
         .insert(&txn)
