@@ -2,11 +2,10 @@ use crate::views::leaderboard::Pagination;
 
 use super::_entities::user::{self, ActiveModel};
 use super::_entities::voter;
+use loco_rs::model::ModelResult;
 use loco_rs::prelude::*;
-use loco_rs::model::{ModelError, ModelResult};
 use sea_orm::{entity::prelude::*, ActiveValue, Order, QueryOrder, QuerySelect, TransactionTrait};
 use sea_orm::{FromQueryResult, JoinType};
-
 
 impl ActiveModelBehavior for ActiveModel {
     // extend activemodel below (keep comment for generators)
@@ -36,7 +35,7 @@ impl super::_entities::user::Model {
 
     pub async fn find_leaderboard(
         db: &DatabaseConnection,
-        username: Option<String>,
+        username: &Option<String>,
         page: u64,
         count: u64,
     ) -> ModelResult<Vec<UserWithVotes>> {
@@ -51,7 +50,7 @@ impl super::_entities::user::Model {
             .offset((page - 1) * count);
 
         if let Some(username) = username {
-            users = users.filter(user::Column::Username.contains(username))
+            users = users.filter(user::Column::Username.starts_with(username))
         }
 
         let users = users.into_model::<UserWithVotes>().all(db).await?;
@@ -73,15 +72,16 @@ impl super::_entities::user::Model {
         })
     }
 
-    pub async fn get_id(db: &DatabaseConnection, username: &String) -> ModelResult<i32> {
-        let user = voter::Entity::find()
-            .filter(voter::Column::Address.eq(username))
+    pub async fn find_voted_user_by_address(
+        db: &DatabaseConnection,
+        address: &String,
+    ) -> ModelResult<Option<user::Model>> {
+        let user = user::Entity::find()
+            .join(JoinType::Join, user::Relation::Voter.def())
+            .filter(voter::Column::Address.eq(address))
             .one(db)
             .await?;
-        
-        match user {
-            Some(user) => Ok(user.id),
-            None => Err(ModelError::EntityNotFound),
-        }
+
+        Ok(user)
     }
 }

@@ -15,6 +15,15 @@ pub enum VoterError {
     ModelError(#[from] ModelError),
 }
 
+#[derive(thiserror::Error, Debug)]
+pub enum DeleteVoterError {
+    #[error("Voter not found")]
+    NotFound,
+
+    #[error(transparent)]
+    ModelError(#[from] ModelError),
+}
+
 impl super::_entities::voter::Model {
     /// finds a voter by ip address
     ///
@@ -29,7 +38,12 @@ impl super::_entities::voter::Model {
         voter.ok_or_else(|| ModelError::EntityNotFound)
     }
 
-    pub async fn add(db: &DatabaseConnection, address: &str, voted_user_id: i32) -> Result<Self, VoterError> {
+    /// Adds a new voter to the db
+    pub async fn add(
+        db: &DatabaseConnection,
+        address: &str,
+        voted_user_id: i32,
+    ) -> Result<Self, VoterError> {
         let txn = db.begin().await.map_err(ModelError::from)?;
 
         if voter::Entity::find()
@@ -54,5 +68,19 @@ impl super::_entities::voter::Model {
         txn.commit().await.map_err(ModelError::from)?;
 
         Ok(voter)
+    }
+
+    /// Deletes a voter from the db
+    pub async fn delete(db: &DatabaseConnection, address: &str) -> Result<(), DeleteVoterError> {
+        let voter = voter::Entity::find()
+            .filter(voter::Column::Address.eq(address))
+            .one(db)
+            .await
+            .map_err(ModelError::from)?
+            .ok_or(DeleteVoterError::NotFound)?;
+
+        voter.delete(db).await.map_err(ModelError::from)?;
+
+        Ok(())
     }
 }

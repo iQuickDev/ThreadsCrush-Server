@@ -29,9 +29,11 @@ async fn leaderboard(
         ));
     }
 
+    let username = &params.username.map(|u| u.to_lowercase());
+
     let users = user::Model::find_leaderboard(
         &ctx.db,
-        params.username,
+        username,
         params.page.try_into().unwrap(),
         settings.page_size,
     )
