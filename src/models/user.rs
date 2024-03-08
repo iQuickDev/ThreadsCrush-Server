@@ -4,8 +4,8 @@ use super::_entities::user::{self, ActiveModel};
 use super::_entities::voter;
 use loco_rs::model::ModelResult;
 use loco_rs::prelude::*;
-use sea_orm::{entity::prelude::*, ActiveValue, Order, QueryOrder, QuerySelect, TransactionTrait};
-use sea_orm::{FromQueryResult, JoinType};
+use sea_orm::{entity::prelude::*, ActiveValue, QuerySelect, TransactionTrait};
+use sea_orm::{DatabaseBackend, FromQueryResult, JoinType, Statement};
 
 impl ActiveModelBehavior for ActiveModel {
     // extend activemodel below (keep comment for generators)
@@ -15,6 +15,7 @@ impl ActiveModelBehavior for ActiveModel {
 pub struct UserWithVotes {
     pub votes: i64,
     pub username: String,
+    pub rank: i64,
 }
 
 impl super::_entities::user::Model {
@@ -39,21 +40,30 @@ impl super::_entities::user::Model {
         page: u64,
         count: u64,
     ) -> ModelResult<Vec<UserWithVotes>> {
-        let mut users = user::Entity::find()
-            .select_only()
-            .column(user::Column::Username)
-            .column_as(voter::Column::Id.count(), "votes")
-            .join(JoinType::Join, user::Relation::Voter.def())
-            .group_by(user::Column::Id)
-            .order_by(voter::Column::VotedUserId.count(), Order::Desc)
-            .limit(count)
-            .offset((page - 1) * count);
+        let username = username.as_ref().map(|s| s.as_str());
 
-        if let Some(username) = username {
-            users = users.filter(user::Column::Username.starts_with(username))
-        }
+        let leaderboard_query = user::Entity::find().from_raw_sql(Statement::from_sql_and_values(
+            DatabaseBackend::Postgres,
+            r#"SELECT
+            u."username",
+            COUNT(v."id") AS "votes",
+            ROW_NUMBER() OVER(ORDER BY COUNT(v."voted_user_id") DESC) AS "rank"
+          FROM
+            "user" u JOIN "voter" v ON (u."id" = v."voted_user_id")
+            WHERE u.username LIKE CONCAT($1, '%')
+          GROUP BY
+            u."id"
+          ORDER BY
+            COUNT(v."voted_user_id") DESC
+          LIMIT $2
+          OFFSET $3;"#,
+            [username.into(), count.into(), ((page - 1) * count).into()],
+        ));
 
-        let users = users.into_model::<UserWithVotes>().all(db).await?;
+        let users = leaderboard_query
+            .into_model::<UserWithVotes>()
+            .all(db)
+            .await?;
 
         Ok(users)
     }
@@ -61,8 +71,15 @@ impl super::_entities::user::Model {
     pub async fn get_leaderboard_pagination(
         db: &DatabaseConnection,
         page_size: u64,
+        username: &Option<String>,
     ) -> ModelResult<Pagination> {
-        let entries = user::Entity::find().count(db).await?;
+        let username = username.clone().unwrap_or("".to_string());
+
+        let entries = user::Entity::find()
+            .filter(user::Column::Username.starts_with(username))
+            .count(db)
+            .await?;
+
         let last = ((entries as f64) / (page_size as f64)).ceil() as u64;
 
         Ok(Pagination {
