@@ -1,4 +1,4 @@
-FROM rust:1.74-slim as builder
+FROM rust:bookworm as builder
 
 WORKDIR /usr/src/
 
@@ -13,4 +13,4 @@ WORKDIR /usr/app
 COPY --from=builder /usr/src/config /usr/app/config
 COPY --from=builder /usr/src/target/release/threads_crush /usr/app/threads_crush
 
-ENTRYPOINT ["/usr/app/threads_crush"]
+ENTRYPOINT ["/usr/app/threads_crush start -e production"]
