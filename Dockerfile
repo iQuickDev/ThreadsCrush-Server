@@ -11,6 +11,6 @@ FROM debian:bookworm-slim
 WORKDIR /usr/app
 
 COPY --from=builder /usr/src/config /usr/app/config
-COPY --from=builder /usr/src/target/release/threads_crush-cli /usr/app/threads_crush-cli
+COPY --from=builder /usr/src/target/release/threads_crush /usr/app/threads_crush
 
-ENTRYPOINT ["/usr/app/threads_crush-cli"]
+ENTRYPOINT ["/usr/app/threads_crush"]
