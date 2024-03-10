@@ -1,4 +1,4 @@
-FROM rust:bookworm as builder
+FROM rust as builder
 
 WORKDIR /usr/src/
 
@@ -8,9 +8,12 @@ RUN cargo build --release
 
 FROM debian:bookworm-slim
 
+RUN apt-get update && apt install -y openssl
+
 WORKDIR /usr/app
 
 COPY --from=builder /usr/src/config /usr/app/config
 COPY --from=builder /usr/src/target/release/threads_crush /usr/app/threads_crush
 
-ENTRYPOINT ["/usr/app/threads_crush start -e production"]
+ENTRYPOINT ["/usr/app/threads_crush"]
+CMD ["start", "-e", "production"]
