@@ -15,5 +15,7 @@ WORKDIR /usr/app
 COPY --from=builder /usr/src/config /usr/app/config
 COPY --from=builder /usr/src/target/release/threads_crush /usr/app/threads_crush
 
+EXPOSE 443
+
 ENTRYPOINT ["/usr/app/threads_crush"]
 CMD ["start", "-e", "production"]
