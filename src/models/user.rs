@@ -45,18 +45,26 @@ impl super::_entities::user::Model {
         let leaderboard_query = user::Entity::find().from_raw_sql(Statement::from_sql_and_values(
             DatabaseBackend::Postgres,
             r#"SELECT
-            u."username",
-            COUNT(v."id") AS "votes",
-            ROW_NUMBER() OVER(ORDER BY COUNT(v."voted_user_id") DESC) AS "rank"
-          FROM
-            "user" u JOIN "voter" v ON (u."id" = v."voted_user_id")
-            WHERE u.username LIKE CONCAT($1, '%')
-          GROUP BY
-            u."id"
+            user_votes_rank."username",
+            user_votes_rank."votes",
+            user_votes_rank."rank"
+          FROM (
+            SELECT
+              u."username",
+              COUNT(v."id") AS "votes",
+              ROW_NUMBER() OVER (ORDER BY COUNT(v."voted_user_id") DESC) AS "rank"
+            FROM
+              "user" u
+              JOIN "voter" v ON (u."id" = v."voted_user_id")
+            GROUP BY
+              u."id"
+          ) AS user_votes_rank
+          WHERE
+            user_votes_rank."username" LIKE CONCAT($1, '%')
           ORDER BY
-            COUNT(v."voted_user_id") DESC
+            user_votes_rank."rank"
           LIMIT $2
-          OFFSET $3;"#,
+          OFFSET $3"#,
             [username.into(), count.into(), ((page - 1) * count).into()],
         ));
 
@@ -64,7 +72,7 @@ impl super::_entities::user::Model {
             .into_model::<UserWithVotes>()
             .all(db)
             .await?;
-
+        
         Ok(users)
     }
 
