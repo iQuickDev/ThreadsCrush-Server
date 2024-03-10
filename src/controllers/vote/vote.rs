@@ -2,7 +2,7 @@ use axum::http::{HeaderMap, StatusCode};
 use axum_client_ip::SecureClientIp;
 use loco_rs::{controller::ErrorDetail, prelude::*};
 use serde::Deserialize;
-use tracing::error;
+use tracing::{debug, error};
 
 use crate::{
     app::REQWEST_CLIENT,
@@ -122,11 +122,14 @@ pub async fn vote(
 /// Get the IP address from the request headers (railway.app includes the real
 /// IP in the "x-Envoy-external-Address" or "x-forwarded-for" headers)
 fn get_ip(secure_ip: &SecureClientIp, headers: &HeaderMap) -> String {
+    debug!("headers: {:?}", headers);
+
     if let Some(ip) = headers
         .get("x-Envoy-external-Address")
         .map(|header| header.to_str().ok())
         .flatten()
     {
+        debug!("using x-Envoy-external-Address: {}", ip);
         return ip.to_string();
     }
 
@@ -137,10 +140,13 @@ fn get_ip(secure_ip: &SecureClientIp, headers: &HeaderMap) -> String {
         .map(|header| header.split(',').last())
         .flatten()
     {
+        debug!("using x-forwarded-for: {}", ip);
         return ip.to_string();
     }
 
-    secure_ip.0.to_canonical().to_string()
+    let layer_ip = secure_ip.0.to_canonical().to_string();
+    debug!("using secure_ip: {:?}", layer_ip);
+    layer_ip
 }
 
 #[derive(Deserialize, Debug)]
