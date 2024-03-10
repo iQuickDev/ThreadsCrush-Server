@@ -1,5 +1,6 @@
-use crate::models::user::UserWithVotes;
 use serde::Serialize;
+
+use crate::models::user::UserWithVotes;
 
 #[derive(Serialize, Default)]
 pub struct LeaderboardResponse {
@@ -18,7 +19,7 @@ pub struct Pagination {
 pub struct User {
     username: String,
     votes: i64,
-    rank: i64
+    rank: i64,
 }
 
 impl LeaderboardResponse {
@@ -34,7 +35,7 @@ impl From<UserWithVotes> for User {
         User {
             username: user.username,
             votes: user.votes,
-            rank: user.rank
+            rank: user.rank,
         }
     }
 }

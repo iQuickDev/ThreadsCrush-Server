@@ -1,11 +1,14 @@
-use crate::views::leaderboard::Pagination;
+use loco_rs::{model::ModelResult, prelude::*};
+use sea_orm::{
+    entity::prelude::*, ActiveValue, DatabaseBackend, FromQueryResult, JoinType, QuerySelect,
+    Statement, TransactionTrait,
+};
 
-use super::_entities::user::{self, ActiveModel};
-use super::_entities::voter;
-use loco_rs::model::ModelResult;
-use loco_rs::prelude::*;
-use sea_orm::{entity::prelude::*, ActiveValue, QuerySelect, TransactionTrait};
-use sea_orm::{DatabaseBackend, FromQueryResult, JoinType, Statement};
+use super::_entities::{
+    user::{self, ActiveModel},
+    voter,
+};
+use crate::views::leaderboard::Pagination;
 
 impl ActiveModelBehavior for ActiveModel {
     // extend activemodel below (keep comment for generators)
@@ -21,6 +24,16 @@ pub struct UserWithVotes {
 impl super::_entities::user::Model {
     pub async fn add(db: &DatabaseConnection, username: &str) -> ModelResult<Self> {
         let txn = db.begin().await?;
+
+        let existing_user = user::Entity::find()
+            .filter(user::Column::Username.eq(username))
+            .one(&txn)
+            .await?;
+
+        if let Some(existing_user) = existing_user {
+            txn.commit().await?;
+            return Ok(existing_user);
+        }
 
         let new_user = user::ActiveModel {
             username: ActiveValue::set(username.to_string()),
@@ -72,7 +85,7 @@ impl super::_entities::user::Model {
             .into_model::<UserWithVotes>()
             .all(db)
             .await?;
-        
+
         Ok(users)
     }
 

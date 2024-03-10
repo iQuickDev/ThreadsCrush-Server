@@ -1,4 +1,4 @@
-use axum::http::StatusCode;
+use axum::http::{HeaderMap, StatusCode};
 use axum_client_ip::SecureClientIp;
 use loco_rs::{controller::ErrorDetail, prelude::*};
 use serde::Deserialize;
@@ -14,6 +14,7 @@ use crate::{
 
 pub async fn vote(
     secure_ip: SecureClientIp,
+    headers: HeaderMap,
     State(ctx): State<AppContext>,
     Json(params): Json<VoteRequest>,
 ) -> Result<impl IntoResponse> {
@@ -82,7 +83,7 @@ pub async fn vote(
 
     let voted_user_id = user::Model::add(&ctx.db, username).await?.id;
 
-    let address = secure_ip.0.to_canonical().to_string();
+    let address = get_ip(&secure_ip, &headers);
 
     voter::Model::add(&ctx.db, &address, voted_user_id)
         .await
@@ -116,6 +117,30 @@ pub async fn vote(
         })?;
 
     Ok(StatusCode::OK)
+}
+
+/// Get the IP address from the request headers (railway.app includes the real
+/// IP in the "x-Envoy-external-Address" or "x-forwarded-for" headers)
+fn get_ip(secure_ip: &SecureClientIp, headers: &HeaderMap) -> String {
+    if let Some(ip) = headers
+        .get("x-Envoy-external-Address")
+        .map(|header| header.to_str().ok())
+        .flatten()
+    {
+        return ip.to_string();
+    }
+
+    if let Some(ip) = headers
+        .get("x-forwarded-for")
+        .map(|header| header.to_str().ok())
+        .flatten()
+        .map(|header| header.split(',').last())
+        .flatten()
+    {
+        return ip.to_string();
+    }
+
+    secure_ip.0.to_canonical().to_string()
 }
 
 #[derive(Deserialize, Debug)]

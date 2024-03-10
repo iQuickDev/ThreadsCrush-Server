@@ -3,8 +3,7 @@ use axum_client_ip::SecureClientIp;
 use loco_rs::{controller::ErrorDetail, prelude::*};
 use tracing::error;
 
-use crate::models::_entities::voter;
-use crate::models::voter::DeleteVoterError;
+use crate::models::{_entities::voter, voter::DeleteVoterError};
 
 pub async fn unvote(
     secure_ip: SecureClientIp,

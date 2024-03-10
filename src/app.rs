@@ -2,6 +2,7 @@ use std::{net::SocketAddr, path::Path};
 
 use async_trait::async_trait;
 use axum::Router as AxumRouter;
+use lazy_static::lazy_static;
 use loco_rs::{
     app::Hooks,
     boot::{create_app, BootResult, ServeParams, StartMode},
@@ -16,7 +17,6 @@ use migration::Migrator;
 use sea_orm::DatabaseConnection;
 
 use crate::{controllers, initializers, models::_entities::user};
-use lazy_static::lazy_static;
 
 lazy_static! {
     pub static ref REQWEST_CLIENT: ReqwestClient = ReqwestClient::new().unwrap();

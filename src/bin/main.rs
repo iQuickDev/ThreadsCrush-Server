@@ -7,6 +7,8 @@ use tracing::warn;
 #[tokio::main]
 async fn main() -> color_eyre::Result<()> {
     color_eyre::install()?;
-    dotenv().map_err(|e| warn!("Error loading .env file: {}", e)).ok();
+    dotenv()
+        .map_err(|e| warn!("Error loading .env file: {}", e))
+        .ok();
     cli::main::<App, Migrator>().await
 }

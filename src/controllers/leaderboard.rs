@@ -1,8 +1,8 @@
-use crate::views::leaderboard::LeaderboardResponse;
-use crate::{common, models::_entities::user};
 use axum::{extract::Query, http::StatusCode};
 use loco_rs::{controller::ErrorDetail, prelude::*};
 use serde::Deserialize;
+
+use crate::{common, models::_entities::user, views::leaderboard::LeaderboardResponse};
 
 #[derive(Deserialize)]
 struct LeaderboardRequest {
@@ -17,7 +17,9 @@ async fn leaderboard(
     let settings = &ctx.config.settings.unwrap();
     let settings = common::settings::Settings::from_json(settings)?;
 
-    let mut pagination = user::Model::get_leaderboard_pagination(&ctx.db, settings.page_size, &params.username).await?;
+    let mut pagination =
+        user::Model::get_leaderboard_pagination(&ctx.db, settings.page_size, &params.username)
+            .await?;
     pagination.current = params.page;
 
     if params.page > pagination.last {

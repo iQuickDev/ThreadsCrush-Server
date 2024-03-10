@@ -1,6 +1,7 @@
-use super::_entities::voter::{self, ActiveModel};
 use loco_rs::model::{ModelError, ModelResult};
 use sea_orm::{entity::prelude::*, ActiveValue, TransactionTrait};
+
+use super::_entities::voter::{self, ActiveModel};
 
 impl ActiveModelBehavior for ActiveModel {
     // extend activemodel below (keep comment for generators)
