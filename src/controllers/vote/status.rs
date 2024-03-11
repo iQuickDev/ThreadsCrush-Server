@@ -1,10 +1,10 @@
-use axum::http::StatusCode;
+use axum::http::{HeaderMap, StatusCode};
 use axum_client_ip::SecureClientIp;
 use loco_rs::{controller::ErrorDetail, prelude::*};
 use serde::Serialize;
 use tracing::error;
 
-use crate::models::_entities::user;
+use crate::{models::_entities::user, utils::get_ip::get_ip};
 
 #[derive(Serialize, Debug)]
 struct StatusResponse {
@@ -14,10 +14,11 @@ struct StatusResponse {
 pub async fn status(
     secure_ip: SecureClientIp,
     State(ctx): State<AppContext>,
+    headers: HeaderMap,
 ) -> Result<impl IntoResponse> {
-    let address = secure_ip.0.to_canonical().to_string();
+    let ip = get_ip(&secure_ip, &headers);
 
-    let voted_user = user::Model::find_voted_user_by_address(&ctx.db, &address)
+    let voted_user = user::Model::find_voted_user_by_address(&ctx.db, &ip)
         .await
         .map_err(|err| {
             error!("Internal server error while getting status: {}", err);
